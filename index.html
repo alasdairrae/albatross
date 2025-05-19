@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WHS Handicap Calculator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 1000px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background-color: #15803d; color: white; padding: 8px; border: 1px solid #ccc; text-align: center; }
+    td { border: 1px solid #ccc; padding: 5px; }
+    input { width: 100%; padding: 4px; box-sizing: border-box; }
+    .small { font-size: 0.9em; color: #555; margin-top: 10px; }
+    .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+    .subtitle { font-size: 18px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div style="margin-bottom: 20px;">
+    <button onclick="saveToBrowser()">💾 Save to Browser</button>
+    <button onclick="downloadScores()">⬇️ Download as CSV</button>
+  </div>
+  <div class="title">Handicap Index: <span id="handicap">N/A</span></div>
+  <div class="subtitle">WHS Handicap Calculator (enter at least 3 scores to see your handicap)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Date</th>
+        <th>Course</th>
+        <th>Rating</th>
+        <th>Slope</th>
+        <th>PCC</th>
+        <th>Score</th>
+        <th>Differential</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div class="small">
+    This is for personal use only. Not for commercial use. The aim is to help golfers understand the permutations of different scores and to give everyone an easy way to calculate what their handicap is, or might be.
+  </div>
+  <div style="margin-top: 15px; margin-bottom: 20px;">
+    <button onclick="saveToBrowser()">💾 Save to Browser</button>
+    <button onclick="downloadScores()">⬇️ Download as CSV</button>
+  </div>
+  <script>
+    const body = document.getElementById('table-body');
+    const handicapEl = document.getElementById('handicap');
+
+    function calcDifferential(score, rating, slope, pcc) {
+      const s = parseFloat(score);
+      const r = parseFloat(rating);
+      const sl = parseFloat(slope);
+      const p = parseFloat(pcc) || 0;
+      if (isNaN(s) || isNaN(r) || isNaN(sl) || sl === 0) return '';
+      return (((s - r - p) * 113) / sl).toFixed(1);
+    }
+
+    function calcHandicap(diffs) {
+      const sorted = diffs.filter(d => !isNaN(d)).sort((a, b) => a - b);
+      const count = sorted.length;
+      if (count < 3) return '';
+
+      const rules = {
+        3: { use: 1, adj: -2 },
+        4: { use: 1, adj: -1 },
+        5: { use: 1, adj:  0 },
+        6: { use: 2, adj: -1 },
+        7: { use: 2, adj:  0 },
+        8: { use: 2, adj:  0 },
+        9: { use: 3, adj:  0 },
+        10: { use: 3, adj: 0 },
+        11: { use: 3, adj: 0 },
+        12: { use: 4, adj: 0 },
+        13: { use: 4, adj: 0 },
+        14: { use: 4, adj: 0 },
+        15: { use: 5, adj: 0 },
+        16: { use: 5, adj: 0 },
+        17: { use: 6, adj: 0 },
+        18: { use: 6, adj: 0 },
+        19: { use: 7, adj: 0 },
+        20: { use: 8, adj: 0 },
+      };
+
+      const rule = rules[Math.min(count, 20)];
+      const slice = sorted.slice(0, rule.use);
+      const avg = slice.reduce((a, b) => a + b, 0) / rule.use;
+      return (avg + rule.adj).toFixed(1);
+    }
+
+    function update() {
+      const diffs = [];
+      for (let i = 0; i < 20; i++) {
+        const row = document.getElementById('row-' + i);
+        const score = row.querySelector('.score').value;
+        const rating = row.querySelector('.rating').value;
+        const slope = row.querySelector('.slope').value;
+        const pcc = row.querySelector('.pcc').value;
+        const diff = calcDifferential(score, rating, slope, pcc);
+        diffs.push(parseFloat(diff));
+        row.querySelector('.diff').innerText = diff;
+      }
+      const handicap = calcHandicap(diffs);
+      handicapEl.innerText = handicap || 'N/A';
+    }
+
+    for (let i = 0; i < 20; i++) {
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + i;
+      tr.innerHTML = `
+        <td style="text-align:center;">${i + 1}</td>
+        <td><input type="date" onchange="update()"></td>
+        <td><input type="text" onchange="update()"></td>
+        <td><input type="text" class="rating" onchange="update()"></td>
+        <td><input type="text" class="slope" onchange="update()"></td>
+        <td><input type="number" class="pcc" min="-1" max="3" step="1" onchange="update()"></td>
+        <td><input type="text" class="score" onchange="update()"></td>
+        <td class="diff" style="text-align:center;"></td>
+      `;
+      body.appendChild(tr);
+    }
+
+    function saveToBrowser() {
+      const data = [];
+      for (let i = 0; i < 20; i++) {
+        const row = document.getElementById('row-' + i);
+        const inputs = row.querySelectorAll('input');
+        data.push(Array.from(inputs).map(input => input.value));
+      }
+      localStorage.setItem('whs-scores', JSON.stringify(data));
+      alert('Saved to browser.');
+    }
+
+    function loadFromBrowser() {
+      const data = JSON.parse(localStorage.getItem('whs-scores') || '[]');
+      if (!data.length) return;
+      for (let i = 0; i < data.length; i++) {
+        const row = document.getElementById('row-' + i);
+        const inputs = row.querySelectorAll('input');
+        data[i].forEach((val, idx) => {
+          if (inputs[idx]) inputs[idx].value = val;
+        });
+      }
+      update();
+    }
+
+    function downloadScores() {
+      const rows = [["Date", "Course", "Rating", "Slope", "PCC", "Score", "Differential"]];
+      for (let i = 0; i < 20; i++) {
+        const row = document.getElementById('row-' + i);
+        const inputs = row.querySelectorAll('input');
+        const diff = row.querySelector('.diff').innerText;
+        const values = Array.from(inputs).map(input => input.value);
+        values.push(diff);
+        rows.push(values);
+      }
+      const csv = rows.map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'whs_scores.csv';
+      a.click();
+    }
+
+    window.onload = loadFromBrowser;
+  </script>
+</body>
+</html>
