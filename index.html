@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WHS Handicap Calculator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background-color: #15803d;
+      color: white;
+      padding: 8px;
+      border: 1px solid #ccc;
+    }
+    td {
+      border: 1px solid #ccc;
+      padding: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 4px;
+      box-sizing: border-box;
+    }
+    .small {
+      font-size: 0.9em;
+      color: #555;
+      margin-top: 10px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">Handicap Index: <span id="handicap">N/A</span></div>
+  <div class="subtitle">WHS Handicap Calculator (enter at least 3 scores to see your handicap)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Course</th>
+        <th>Rating</th>
+        <th>Slope</th>
+        <th>PCC</th>
+        <th>Score</th>
+        <th>Differential</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div class="small">
+    This is for personal use only. Not for commercial use. The aim is to help golfers understand the permutations of different scores and to give everyone an easy way to calculate what their handicap is, or might be.
+  </div>
+  <script>
+    const body = document.getElementById('table-body');
+    const handicapEl = document.getElementById('handicap');
+
+    function calcDifferential(score, rating, slope, pcc) {
+      const s = parseFloat(score);
+      const r = parseFloat(rating);
+      const sl = parseFloat(slope);
+      const p = parseFloat(pcc) || 0;
+      if (isNaN(s) || isNaN(r) || isNaN(sl) || sl === 0) return '';
+      return (((s - r - p) * 113) / sl).toFixed(1);
+    }
+
+    function calcHandicap(diffs) {
+      const sorted = diffs.filter(d => !isNaN(d)).sort((a, b) => a - b);
+      const count = sorted.length;
+      if (count < 3) return '';
+      const lookup = {
+        3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2,
+        9: 3, 10: 3, 11: 4, 12: 4, 13: 5, 14: 5,
+        15: 6, 16: 6, 17: 7, 18: 8, 19: 9, 20: 8
+      };
+      const use = lookup[Math.min(count, 20)] || 8;
+      const avg = sorted.slice(0, use).reduce((a, b) => a + b, 0) / use;
+      return (avg * 0.96).toFixed(1);
+    }
+
+    function update() {
+      const diffs = [];
+      for (let i = 0; i < 20; i++) {
+        const row = document.getElementById('row-' + i);
+        const score = row.querySelector('.score').value;
+        const rating = row.querySelector('.rating').value;
+        const slope = row.querySelector('.slope').value;
+        const pcc = row.querySelector('.pcc').value;
+        const diff = calcDifferential(score, rating, slope, pcc);
+        diffs.push(parseFloat(diff));
+        row.querySelector('.diff').innerText = diff;
+      }
+      const handicap = calcHandicap(diffs);
+      handicapEl.innerText = handicap || 'N/A';
+    }
+
+    for (let i = 0; i < 20; i++) {
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + i;
+      tr.innerHTML = `
+        <td><input type="date" onchange="update()"></td>
+        <td><input type="text" onchange="update()"></td>
+        <td><input type="text" class="rating" onchange="update()"></td>
+        <td><input type="text" class="slope" onchange="update()"></td>
+        <td><input type="number" class="pcc" min="-1" max="3" step="1" onchange="update()"></td>
+        <td><input type="text" class="score" onchange="update()"></td>
+        <td class="diff" style="text-align:center;"></td>
+      `;
+      body.appendChild(tr);
+    }
+  </script>
+</body>
+</html>
